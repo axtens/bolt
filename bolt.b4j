@@ -1,0 +1,79 @@
+﻿AppType=StandardJava
+Build1=Default,b4j.example
+Group=Default Group
+Library1=jcore
+Library2=jserver
+Library3=jsql
+Library4=javaobject
+Module1=Tracks
+Module2=Shutdown
+NumberOfFiles=0
+NumberOfLibraries=4
+NumberOfModules=2
+Version=7.51
+@EndOfDesignText@
+'Non-UI application (console / server application)
+'Epoxy-alike tool to implement a Tracks server
+'SQLite 
+'datetime INTEGER, guid TEXT, domain TEXT, category TEXT, message TEXT
+'PUT /tracks?guid=text&domain=text&category=text&message=text
+'GET /tracks?domain=text
+'GET /tracks?domain=text&category=text
+'GET /tracks?guid=text
+
+#Region  Project Attributes 
+	#CommandLineArgs:
+	#MergeLibraries: True 
+	#CommandLineArgs: 43210
+	#AdditionalJar: sqlite-jdbc-3.7.2.jar
+#End Region
+
+Sub Process_Globals
+	Public gVersion As String = "2016.03.09.1"
+	Public gSql As SQL
+	Public gSrvr As Server
+    Public is2close As Boolean = False
+	Private timer1 As Timer
+	Public tracksTXT As String = "c:\web\tracks.txt"
+	Public tracksDB3 As String  = "c:\web\tracks.db3"
+End Sub
+
+Sub AppStart (Args() As String)
+	gSql.InitializeSQLite("",tracksDB3,True)
+	gSql.ExecNonQuery("CREATE TABLE IF NOT EXISTS Tracks (id INTEGER PRIMARY KEY ASC, datetime NUMERIC, guid TEXT, domain TEXT, category TEXT, message TEXT)")
+
+    Dim port As Int
+    port = 43210
+    If Args.Length > 0 Then
+            port = Args(0)
+    End If
+    gSrvr.Initialize("srvr")
+    gSrvr.Port = port
+  
+  	gSrvr.AddHandler("/tracks", "Tracks", False) 'GET/PUT
+  	gSrvr.AddHandler("/tracks/shutdown", "Shutdown", False) 'GET/PUT
+
+	gSrvr.Start
+	
+	LogDebug("Server " & gVersion & " starting")
+
+    timer1.Initialize("timer1", 5000)
+    timer1.Enabled=True
+		
+	StartMessageLoop
+End Sub
+
+Sub timer1_tick
+    If is2close=True Then
+        StopMessageLoop
+        timer1.Enabled=False
+		gSql.ExecNonQuery("VACUUM")
+		gSql.Close
+        ExitApplication
+    End If
+End Sub
+
+public Sub UUID As String
+   Dim jo As JavaObject
+   Return jo.InitializeStatic("java.util.UUID").RunMethod("randomUUID", Null)
+End Sub
